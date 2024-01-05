@@ -1,0 +1,47 @@
+version: '3.9'
+
+networks:
+  net:
+    driver: bridge
+
+services:
+  chroma:
+    image: ghcr.io/chroma-core/chroma:0.4.2
+    volumes:
+      # Be aware that indexed data are located in "/chroma/chroma/"
+      # Default configuration for persist_directory in chromadb/config.py
+      # Read more about deployments: https://docs.trychroma.com/deployment
+      - ./chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - CHROMA_SERVER_AUTH_PROVIDER=${CHROMA_SERVER_AUTH_PROVIDER}
+      - CHROMA_SERVER_AUTH_CREDENTIALS_FILE=${CHROMA_SERVER_AUTH_CREDENTIALS_FILE}
+      - CHROMA_SERVER_AUTH_CREDENTIALS=${CHROMA_SERVER_AUTH_CREDENTIALS}
+      - CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER=${CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER}
+      - PERSIST_DIRECTORY=${PERSIST_DIRECTORY:-/chroma/chroma}
+      - CHROMA_OTEL_EXPORTER_ENDPOINT=${CHROMA_OTEL_EXPORTER_ENDPOINT}
+      - CHROMA_OTEL_EXPORTER_HEADERS=${CHROMA_OTEL_EXPORTER_HEADERS}
+      - CHROMA_OTEL_SERVICE_NAME=${CHROMA_OTEL_SERVICE_NAME}
+      - CHROMA_OTEL_GRANULARITY=${CHROMA_OTEL_GRANULARITY}
+      - CHROMA_SERVER_NOFILE=${CHROMA_SERVER_NOFILE}
+    ports:
+      - "8000:8000"
+    networks:
+      - net
+  jupyter:
+    image: jupyter
+    build:
+      context: .
+      dockerfile: Dockerfile.nb
+      args:
+        - CHROMA_VERSION=${CHROMA_VERSION:-0.4.2}
+    volumes:
+      - ./notebooks:/home/jovyan/
+    command: "start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''"
+    environment:
+      - TEST=1
+      - JUPYTER_ENABLE_LAB=yes
+    ports:
+      - "10000:8888"
+    networks:
+      - net
